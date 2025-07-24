@@ -113,6 +113,7 @@
     .image-container {
       position: relative;
       display: inline-block;
+      margin: 10px 0;
     }
 
     .delete-image-btn {
@@ -128,6 +129,7 @@
       font-size: 12px;
       cursor: pointer;
       display: none;
+      z-index: 10;
     }
 
     .image-container:hover .delete-image-btn {
@@ -182,6 +184,37 @@
     .fade-in {
       animation: fadeIn 0.3s ease-out;
     }
+
+    /* Light theme styles */
+    body.light-theme {
+      background-color: #f5f5f5;
+      color: #333;
+    }
+
+    body.light-theme #editor {
+      background-color: #fff;
+      color: #333;
+    }
+
+    body.light-theme header,
+    body.light-theme footer {
+      background-color: #e0e0e0;
+      color: #333;
+    }
+
+    body.light-theme .status-bar {
+      background-color: #f0f0f0;
+      color: #666;
+    }
+
+    body.light-theme button:not(.toggle-dark) {
+      background-color: #4a4a4a;
+      color: white;
+    }
+
+    body.light-theme #editor img {
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
   </style>
 </head>
 <body>
@@ -202,7 +235,7 @@
       <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1pbWFnZS1wbHVzIj48cGF0aCBkPSJNMjEgMTJ2M2EyIDIgMCAwIDEtMiAySDVhMiAyIDAgMCAxLTItMnYtMyIvPjxwYXRoIGQ9Ik0xNiA1aDNhMiAyIDAgMCAxIDIgMnYzIi8+PHBhdGggZD0iTTMgMTZoNSIvPjxwYXRoIGQ9Im04IDE1IDQtNGEyIDIgMCAwIDEgMyAwbDQgNCIvPjxwYXRoIGQ9Ik0xNCA4aC4wMSIvPjwvc3ZnPg==" alt="Insert" />
       Insert Image
     </button>
-    <button onclick="saveFile()">
+    <button id="saveBtn">
       <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1zYXZlIj48cGF0aCBkPSJNMTkgMjFINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMWw0IDR2M2EyIDIgMCAwIDAgMiAyaDN6Ii8+PHBhdGggZD0iTTE3IDIxdi04SDd2OCIvPjxwYXRoIGQ9Ik03IDN2NWg4Ii8+PC9zdmc+" alt="Save" />
       Save as TXT
     </button>
@@ -217,6 +250,7 @@
     const insertImageBtn = document.getElementById('insertImageBtn');
     const imageInput = document.getElementById('imageInput');
     const toggleDarkBtn = document.querySelector('.toggle-dark');
+    const saveBtn = document.getElementById('saveBtn');
 
     // Typing sound
     editor.addEventListener('input', () => {
@@ -258,6 +292,7 @@
           deleteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             container.remove();
+            updateWordCount();
           });
           
           container.appendChild(img);
@@ -288,31 +323,52 @@
           
           // Scroll to show the new image
           container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          updateWordCount();
         };
         reader.readAsDataURL(file);
         this.value = ''; // reset input
       }
     });
 
-    // Save to TXT (now includes basic formatting)
+    // Save to TXT (fixed version that doesn't modify the editor)
+    saveBtn.addEventListener('click', saveFile);
+    
     function saveFile() {
-      let text = editor.innerText;
+      // Create a temporary div to work with
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = editor.innerHTML;
       
-      // Create a more readable version with line breaks
-      const div = document.createElement('div');
-      div.innerHTML = editor.innerHTML;
-      
-      // Convert images to text indicators
-      const images = div.querySelectorAll('img');
+      // Replace images with text placeholders
+      const images = tempDiv.querySelectorAll('img');
       images.forEach((img, index) => {
-        const replacement = document.createTextNode(`\n[Image ${index + 1}]\n`);
-        img.parentNode.replaceChild(replacement, img);
+        const placeholder = document.createTextNode(`[Image ${index + 1}]`);
+        img.replaceWith(placeholder);
       });
       
-      // Convert divs to line breaks
-      text = div.innerText.replace(/\n{3,}/g, '\n\n');
+      // Get the text content with preserved line breaks
+      let textContent = '';
+      const nodes = tempDiv.childNodes;
       
-      const blob = new Blob([text], { type: 'text/plain' });
+      for (let node of nodes) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          textContent += node.textContent;
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+          // Preserve some basic formatting
+          if (node.nodeName === 'DIV') {
+            textContent += '\n' + node.textContent + '\n';
+          } else if (node.nodeName === 'BR' || node.nodeName === 'P') {
+            textContent += '\n';
+          } else {
+            textContent += node.textContent;
+          }
+        }
+      }
+      
+      // Clean up multiple consecutive newlines
+      textContent = textContent.replace(/\n{3,}/g, '\n\n');
+      
+      // Create and download the file
+      const blob = new Blob([textContent], { type: 'text/plain' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `notes-${new Date().toISOString().slice(0,10)}.txt`;
@@ -320,14 +376,15 @@
       link.click();
       document.body.removeChild(link);
       
-      // Show a quick visual feedback
-      const originalText = link.textContent;
-      link.textContent = 'Saved!';
-      link.style.backgroundColor = '#4CAF50';
+      // Show visual feedback
+      const originalText = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1jaGVjayI+PHBhdGggZD0iTTIwIDYgOSAxN2wtNS01Ii8+PC9zdmc+" alt="Saved" /> Saved!';
+      saveBtn.style.backgroundColor = '#4CAF50';
+      
       setTimeout(() => {
-        link.textContent = originalText;
-        link.style.backgroundColor = '';
-      }, 1000);
+        saveBtn.innerHTML = originalText;
+        saveBtn.style.backgroundColor = '';
+      }, 2000);
     }
 
     // Toggle dark/light theme
@@ -335,34 +392,8 @@
       document.body.classList.toggle('light-theme');
       if (document.body.classList.contains('light-theme')) {
         toggleDarkBtn.textContent = '🌒';
-        document.body.style.backgroundColor = '#f5f5f5';
-        document.body.style.color = '#333';
-        editor.style.backgroundColor = '#fff';
-        editor.style.color = '#333';
-        header.style.backgroundColor = '#e0e0e0';
-        header.style.color = '#333';
-        footer.style.backgroundColor = '#e0e0e0';
-        document.querySelectorAll('button').forEach(btn => {
-          if (btn !== toggleDarkBtn) {
-            btn.style.backgroundColor = '#4a4a4a';
-            btn.style.color = 'white';
-          }
-        });
       } else {
         toggleDarkBtn.textContent = '🌓';
-        document.body.style.backgroundColor = '#1e1e1e';
-        document.body.style.color = '#ddd';
-        editor.style.backgroundColor = '#2a2a2a';
-        editor.style.color = '#e0e0e0';
-        header.style.backgroundColor = '#2b2b2b';
-        header.style.color = '#f0f0f0';
-        footer.style.backgroundColor = '#2b2b2b';
-        document.querySelectorAll('button').forEach(btn => {
-          if (btn !== toggleDarkBtn) {
-            btn.style.backgroundColor = '#3a3a3a';
-            btn.style.color = 'white';
-          }
-        });
       }
     });
 
