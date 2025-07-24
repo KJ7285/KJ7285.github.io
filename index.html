@@ -97,9 +97,21 @@
     <button onclick="saveFile()">💾 Save as TXT</button>
   </footer>
 
+  <audio id="typeSound" src="mixkit-typewriter-soft-click-1125.wav" preload="auto"></audio>
+
   <script>
+    const editor = document.getElementById('editor');
+    const typeSound = document.getElementById('typeSound');
+
+    editor.addEventListener('input', () => {
+      // Clone the sound to allow overlapping plays
+      const soundClone = typeSound.cloneNode();
+      soundClone.volume = 0.25; // Lower volume if needed
+      soundClone.play();
+    });
+
     function saveFile() {
-      const text = document.getElementById('editor').value;
+      const text = editor.value;
       const blob = new Blob([text], { type: 'text/plain' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
