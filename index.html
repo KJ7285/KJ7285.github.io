@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Comfortable Dark Theme Notepad</title>
+  <title>Advanced Dark Theme Notepad</title>
   <style>
     * {
       box-sizing: border-box;
@@ -65,6 +65,14 @@
       align-items: center;
       border-top: 1px solid #444;
       gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     button {
@@ -96,7 +104,8 @@
       filter: brightness(0) invert(1);
     }
 
-    #editor img {
+    #editor img, 
+    #editor video {
       max-width: 100%;
       max-height: 300px;
       border-radius: 8px;
@@ -106,17 +115,18 @@
       transition: transform 0.2s;
     }
 
-    #editor img:hover {
+    #editor img:hover, 
+    #editor video:hover {
       transform: scale(1.02);
     }
 
-    .image-container {
+    .media-container {
       position: relative;
       display: inline-block;
       margin: 10px 0;
     }
 
-    .delete-image-btn {
+    .delete-media-btn {
       position: absolute;
       top: 5px;
       right: 5px;
@@ -132,7 +142,7 @@
       z-index: 10;
     }
 
-    .image-container:hover .delete-image-btn {
+    .media-container:hover .delete-media-btn {
       display: block;
     }
 
@@ -143,10 +153,16 @@
       color: #aaa;
       display: flex;
       justify-content: space-between;
+      align-items: center;
     }
 
     .word-count {
       margin-left: auto;
+    }
+
+    .last-saved {
+      font-size: 0.8rem;
+      color: #777;
     }
 
     .toggle-dark {
@@ -157,6 +173,95 @@
       font-size: 1.2rem;
     }
 
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: #2b2b2b;
+      padding: 2rem;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .history-item {
+      padding: 10px;
+      border-bottom: 1px solid #444;
+      cursor: pointer;
+    }
+
+    .history-item:hover {
+      background-color: #3a3a3a;
+    }
+
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #4a4a4a;
+      transition: .4s;
+      border-radius: 24px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: #4CAF50;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
     @media (max-width: 600px) {
       header {
         font-size: 1.2rem;
@@ -165,17 +270,30 @@
       }
 
       footer {
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
+        flex-direction: column;
+      }
+
+      .toolbar {
+        width: 100%;
       }
 
       button {
-        width: auto;
+        width: 100%;
+        justify-content: center;
+      }
+
+      .status-bar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+      }
+
+      .word-count, .last-saved {
+        margin-left: 0;
       }
     }
 
-    /* Animation for new images */
+    /* Animation for new media */
     @keyframes fadeIn {
       from { opacity: 0; transform: scale(0.95); }
       to { opacity: 1; transform: scale(1); }
@@ -212,137 +330,329 @@
       color: white;
     }
 
-    body.light-theme #editor img {
+    body.light-theme #editor img,
+    body.light-theme #editor video {
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    body.light-theme .modal-content {
+      background-color: #f0f0f0;
+      color: #333;
+    }
+
+    body.light-theme .history-item:hover {
+      background-color: #e0e0e0;
     }
   </style>
 </head>
 <body>
   <header>
-    <span>Comfortable Dark Notepad</span>
+    <span>Advanced Dark Notepad</span>
     <button class="toggle-dark" title="Toggle theme">🌓</button>
   </header>
 
   <div class="status-bar">
+    <div class="toggle-label">
+      <span>Auto-save</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="autoSaveToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
     <span class="word-count">0 words</span>
+    <span class="last-saved" id="lastSaved"></span>
   </div>
 
   <div id="editor" contenteditable="true" placeholder="Start typing..."></div>
 
   <footer>
-    <input type="file" id="imageInput" accept="image/*" style="display:none" />
-    <button id="insertImageBtn">
-      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1pbWFnZS1wbHVzIj48cGF0aCBkPSJNMjEgMTJ2M2EyIDIgMCAwIDEtMiAySDVhMiAyIDAgMCAxLTItMnYtMyIvPjxwYXRoIGQ9Ik0xNiA1aDNhMiAyIDAgMCAxIDIgMnYzIi8+PHBhdGggZD0iTTMgMTZoNSIvPjxwYXRoIGQ9Im04IDE1IDQtNGEyIDIgMCAwIDEgMyAwbDQgNCIvPjxwYXRoIGQ9Ik0xNCA4aC4wMSIvPjwvc3ZnPg==" alt="Insert" />
-      Insert Image
-    </button>
-    <button id="saveBtn">
-      <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1zYXZlIj48cGF0aCBkPSJNMTkgMjFINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMWw0IDR2M2EyIDIgMCAwIDAgMiAyaDN6Ii8+PHBhdGggZD0iTTE3IDIxdi04SDd2OCIvPjxwYXRoIGQ9Ik03IDN2NWg4Ii8+PC9zdmc+" alt="Save" />
-      Save as TXT
-    </button>
+    <div class="toolbar">
+      <input type="file" id="mediaInput" accept="image/*,video/*,image/gif" multiple style="display:none" />
+      <button id="insertMediaBtn">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1pbWFnZS1wbHVzIj48cGF0aCBkPSJNMjEgMTJ2M2EyIDIgMCAwIDEtMiAySDVhMiAyIDAgMCAxLTItMnYtMyIvPjxwYXRoIGQ9Ik0xNiA1aDNhMiAyIDAgMCAxIDIgMnYzIi8+PHBhdGggZD0iTTMgMTZoNSIvPjxwYXRoIGQ9Im04IDE1IDQtNGEyIDIgMCAwIDEgMyAwbDQgNCIvPjxwYXRoIGQ9Ik0xNCA4aC4wMSIvPjwvc3ZnPg==" alt="Insert" />
+        Insert Media
+      </button>
+      <button id="saveBtn">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1zYXZlIj48cGF0aCBkPSJNMTkgMjFINWEyIDIgMCAwIDEtMi0yVjVhMiAyIDAgMCAxIDItMmgxMWw0IDR2M2EyIDIgMCAwIDAgMiAyaDN6Ii8+PHBhdGggZD0iTTE3IDIxdi04SDd2OCIvPjxwYXRoIGQ9Ik03IDN2NWg4Ii8+PC9zdmc+" alt="Save" />
+        Save as TXT
+      </button>
+      <button id="historyBtn">
+        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1oaXN0b3J5Ij48cGF0aCBkPSJNMyAzYTIgMiAwIDAgMSAyLTJoMTJhMiAyIDAgMCAxIDIgMnYxNmEyIDIgMCAwIDEtMiAySDVhMiAyIDAgMCAxLTItMloiLz48cGF0aCBkPSJNMyAxNmgxOCIvPjxwYXRoIGQ9Ik0xMSA2aDQiLz48cGF0aCBkPSJNMTUgMTBoNCIvPjwvc3ZnPg==" alt="History" />
+        History
+      </button>
+    </div>
   </footer>
+
+  <!-- Modal Dialogs -->
+  <div id="recoveryModal" class="modal">
+    <div class="modal-content">
+      <h3>Recover Unsaved Work?</h3>
+      <p>We found unsaved changes from your last session. Would you like to download them as a text file?</p>
+      <div class="modal-buttons">
+        <button id="recoverYes">Yes, Download</button>
+        <button id="recoverNo">No, Just Load</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="historyModal" class="modal">
+    <div class="modal-content">
+      <h3>Saved Notes History</h3>
+      <div id="historyList"></div>
+      <div class="modal-buttons">
+        <button id="closeHistory">Close</button>
+      </div>
+    </div>
+  </div>
 
   <audio id="typeSound" src="https://assets.mixkit.co/sfx/preview/mixkit-typewriter-soft-click-1125.mp3" preload="auto"></audio>
 
   <script>
+    // DOM Elements
     const editor = document.getElementById('editor');
     const typeSound = document.getElementById('typeSound');
     const wordCountElement = document.querySelector('.word-count');
-    const insertImageBtn = document.getElementById('insertImageBtn');
-    const imageInput = document.getElementById('imageInput');
+    const lastSavedElement = document.getElementById('lastSaved');
+    const insertMediaBtn = document.getElementById('insertMediaBtn');
+    const mediaInput = document.getElementById('mediaInput');
     const toggleDarkBtn = document.querySelector('.toggle-dark');
     const saveBtn = document.getElementById('saveBtn');
+    const historyBtn = document.getElementById('historyBtn');
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    const recoveryModal = document.getElementById('recoveryModal');
+    const recoverYesBtn = document.getElementById('recoverYes');
+    const recoverNoBtn = document.getElementById('recoverNo');
+    const historyModal = document.getElementById('historyModal');
+    const historyList = document.getElementById('historyList');
+    const closeHistoryBtn = document.getElementById('closeHistory');
 
-    // Typing sound
-    editor.addEventListener('input', () => {
-      updateWordCount();
+    // Constants
+    const AUTO_SAVE_KEY = 'autoSavedContent';
+    const HISTORY_KEY = 'notesHistory';
+    const MAX_HISTORY_ITEMS = 10;
+    const AUTO_SAVE_INTERVAL = 30000; // 30 seconds
+    const DEBOUNCE_TIME = 2000; // 2 seconds
+
+    // State variables
+    let isRecovered = false;
+    let lastSaveTime = 0;
+    let autoSaveInterval;
+    let debounceTimer;
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+      // Check for unsaved work
+      const savedContent = localStorage.getItem(AUTO_SAVE_KEY);
+      if (savedContent) {
+        recoveryModal.style.display = 'flex';
+      } else {
+        loadFromLocalStorage();
+      }
       
-      // Play sound only if there's actual content change (not just cursor movement)
-      if (window.getSelection().toString().length === 0) {
-        const clone = typeSound.cloneNode();
-        clone.volume = 0.3;
-        clone.play().catch(e => console.log("Audio play failed:", e));
+      // Set up auto-save from toggle state
+      autoSaveToggle.checked = localStorage.getItem('autoSaveEnabled') !== 'false';
+      if (autoSaveToggle.checked) {
+        startAutoSave();
+      }
+      
+      updateWordCount();
+      updateLastSavedTime();
+      
+      // Load any previously saved content
+      if (localStorage.getItem(AUTO_SAVE_KEY)) {
+        editor.innerHTML = localStorage.getItem(AUTO_SAVE_KEY);
       }
     });
 
-    // Update word count
+    // Event Listeners
+    editor.addEventListener('input', handleEditorInput);
+    autoSaveToggle.addEventListener('change', handleAutoSaveToggle);
+    insertMediaBtn.addEventListener('click', () => mediaInput.click());
+    mediaInput.addEventListener('change', handleMediaInsert);
+    saveBtn.addEventListener('click', saveFile);
+    historyBtn.addEventListener('click', showHistory);
+    recoverYesBtn.addEventListener('click', recoverWithDownload);
+    recoverNoBtn.addEventListener('click', recoverWithoutDownload);
+    closeHistoryBtn.addEventListener('click', () => historyModal.style.display = 'none');
+    toggleDarkBtn.addEventListener('click', toggleTheme);
+
+    // Beforeunload event to save content when leaving
+    window.addEventListener('beforeunload', (e) => {
+      if (autoSaveToggle.checked && editor.textContent.trim().length > 0) {
+        saveToLocalStorage();
+      }
+    });
+
+    // Functions
+    function handleEditorInput() {
+      updateWordCount();
+      
+      // Play sound only if there's actual content change
+      if (window.getSelection().toString().length === 0) {
+        playTypeSound();
+      }
+      
+      // Debounce auto-save to prevent frequent saves
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        if (autoSaveToggle.checked && editor.textContent.trim().length > 0) {
+          saveToLocalStorage();
+        }
+      }, DEBOUNCE_TIME);
+    }
+
+    function playTypeSound() {
+      const clone = typeSound.cloneNode();
+      clone.volume = 0.3;
+      clone.play().catch(e => console.log("Audio play failed:", e));
+    }
+
+    function handleAutoSaveToggle() {
+      localStorage.setItem('autoSaveEnabled', autoSaveToggle.checked);
+      if (autoSaveToggle.checked) {
+        startAutoSave();
+      } else {
+        stopAutoSave();
+      }
+    }
+
+    function startAutoSave() {
+      // Clear any existing interval
+      stopAutoSave();
+      
+      // Start new interval
+      autoSaveInterval = setInterval(() => {
+        if (autoSaveToggle.checked && editor.textContent.trim().length > 0) {
+          saveToLocalStorage();
+        }
+      }, AUTO_SAVE_INTERVAL);
+    }
+
+    function stopAutoSave() {
+      if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+      }
+    }
+
+    function saveToLocalStorage() {
+      const content = editor.innerHTML;
+      localStorage.setItem(AUTO_SAVE_KEY, content);
+      lastSaveTime = Date.now();
+      updateLastSavedTime();
+    }
+
+    function loadFromLocalStorage() {
+      const savedContent = localStorage.getItem(AUTO_SAVE_KEY);
+      if (savedContent) {
+        editor.innerHTML = savedContent;
+        isRecovered = true;
+      }
+    }
+
     function updateWordCount() {
       const text = editor.innerText.trim();
       const wordCount = text === '' ? 0 : text.split(/\s+/).length;
       wordCountElement.textContent = `${wordCount} word${wordCount !== 1 ? 's' : ''}`;
     }
 
-    // Insert image with better handling
-    insertImageBtn.addEventListener('click', () => imageInput.click());
-    
-    imageInput.addEventListener('change', function() {
-      const file = this.files[0];
-      if (file && file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const container = document.createElement('div');
-          container.className = 'image-container fade-in';
-          
-          const img = document.createElement('img');
-          img.src = e.target.result;
-          
-          const deleteBtn = document.createElement('button');
-          deleteBtn.className = 'delete-image-btn';
-          deleteBtn.innerHTML = '×';
-          deleteBtn.title = 'Delete image';
-          deleteBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            container.remove();
-            updateWordCount();
-          });
-          
-          container.appendChild(img);
-          container.appendChild(deleteBtn);
-          
-          // Insert at cursor position
-          const selection = window.getSelection();
-          if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(container);
-            
-            // Add paragraph after image if needed
-            if (!range.startContainer.nextSibling || 
-                range.startContainer.nextSibling.nodeName !== 'P') {
-              const p = document.createElement('p');
-              p.innerHTML = '<br>';
-              container.after(p);
-            }
-            
-            // Move cursor after the image
-            const newRange = document.createRange();
-            newRange.setStartAfter(container);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-          }
-          
-          // Scroll to show the new image
-          container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          updateWordCount();
-        };
-        reader.readAsDataURL(file);
-        this.value = ''; // reset input
+    function updateLastSavedTime() {
+      if (lastSaveTime > 0) {
+        const date = new Date(lastSaveTime);
+        lastSavedElement.textContent = `Last saved: ${date.toLocaleTimeString()}`;
+      } else {
+        lastSavedElement.textContent = '';
       }
-    });
+    }
 
-    // Save to TXT (fixed version that doesn't modify the editor)
-    saveBtn.addEventListener('click', saveFile);
-    
+    function handleMediaInsert() {
+      const files = this.files;
+      if (files.length === 0) return;
+      
+      Array.from(files).forEach(file => {
+        if (file.type.startsWith('image/') || file.type.startsWith('video/')) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            insertMediaElement(file.type, e.target.result);
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+      
+      this.value = ''; // reset input
+    }
+
+    function insertMediaElement(type, src) {
+      const container = document.createElement('div');
+      container.className = 'media-container fade-in';
+      
+      let mediaElement;
+      if (type.startsWith('image/')) {
+        mediaElement = document.createElement('img');
+      } else if (type.startsWith('video/')) {
+        mediaElement = document.createElement('video');
+        mediaElement.controls = true;
+      }
+      
+      mediaElement.src = src;
+      
+      const deleteBtn = document.createElement('button');
+      deleteBtn.className = 'delete-media-btn';
+      deleteBtn.innerHTML = '×';
+      deleteBtn.title = 'Delete media';
+      deleteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        container.remove();
+        updateWordCount();
+      });
+      
+      container.appendChild(mediaElement);
+      container.appendChild(deleteBtn);
+      
+      // Insert at cursor position
+      const selection = window.getSelection();
+      if (selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(container);
+        
+        // Add paragraph after media if needed
+        if (!range.startContainer.nextSibling || 
+            range.startContainer.nextSibling.nodeName !== 'P') {
+          const p = document.createElement('p');
+          p.innerHTML = '<br>';
+          container.after(p);
+        }
+        
+        // Move cursor after the media
+        const newRange = document.createRange();
+        newRange.setStartAfter(container);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+      
+      // Scroll to show the new media
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      updateWordCount();
+      
+      // Auto-save if enabled
+      if (autoSaveToggle.checked) {
+        saveToLocalStorage();
+      }
+    }
+
     function saveFile() {
       // Create a temporary div to work with
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = editor.innerHTML;
       
-      // Replace images with text placeholders
-      const images = tempDiv.querySelectorAll('img');
-      images.forEach((img, index) => {
-        const placeholder = document.createTextNode(`[Image ${index + 1}]`);
-        img.replaceWith(placeholder);
+      // Replace media with text placeholders
+      const mediaElements = tempDiv.querySelectorAll('img, video');
+      mediaElements.forEach((media, index) => {
+        const placeholder = document.createTextNode(
+          media.tagName === 'IMG' ? `[Image ${index + 1}]` : `[Video ${index + 1}]`
+        );
+        media.replaceWith(placeholder);
       });
       
       // Get the text content with preserved line breaks
@@ -365,7 +675,7 @@
       }
       
       // Clean up multiple consecutive newlines
-      textContent = textContent.replace(/\n{3,}/g, '\n\n');
+      textContent = textContent.replace(/\n{3,}/g, '\n\n').trim();
       
       // Create and download the file
       const blob = new Blob([textContent], { type: 'text/plain' });
@@ -376,7 +686,79 @@
       link.click();
       document.body.removeChild(link);
       
+      // Add to history
+      addToHistory(textContent);
+      
       // Show visual feedback
+      showSaveFeedback();
+    }
+
+    function addToHistory(content) {
+      let history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+      
+      // Add new item to beginning of array
+      history.unshift({
+        content: content,
+        timestamp: Date.now()
+      });
+      
+      // Limit history size
+      if (history.length > MAX_HISTORY_ITEMS) {
+        history = history.slice(0, MAX_HISTORY_ITEMS);
+      }
+      
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function showHistory() {
+      const history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
+      historyList.innerHTML = '';
+      
+      if (history.length === 0) {
+        historyList.innerHTML = '<p>No saved notes in history</p>';
+      } else {
+        history.forEach((item, index) => {
+          const historyItem = document.createElement('div');
+          historyItem.className = 'history-item';
+          
+          const date = new Date(item.timestamp);
+          const preview = item.content.length > 50 
+            ? item.content.substring(0, 50) + '...' 
+            : item.content;
+          
+          historyItem.innerHTML = `
+            <strong>${date.toLocaleString()}</strong>
+            <p>${preview}</p>
+          `;
+          
+          historyItem.addEventListener('click', () => {
+            downloadHistoryItem(item);
+          });
+          
+          historyList.appendChild(historyItem);
+        });
+      }
+      
+      historyModal.style.display = 'flex';
+    }
+
+    function downloadHistoryItem(item) {
+      const blob = new Blob([item.content], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      
+      const date = new Date(item.timestamp);
+      const formattedDate = date.toISOString().slice(0,10);
+      
+      link.download = `notes-${formattedDate}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      historyModal.style.display = 'none';
+    }
+
+    function showSaveFeedback() {
       const originalText = saveBtn.innerHTML;
       saveBtn.innerHTML = '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0ibHVjaWRlIGx1Y2lkZS1jaGVjayI+PHBhdGggZD0iTTIwIDYgOSAxN2wtNS01Ii8+PC9zdmc+" alt="Saved" /> Saved!';
       saveBtn.style.backgroundColor = '#4CAF50';
@@ -387,18 +769,40 @@
       }, 2000);
     }
 
-    // Toggle dark/light theme
-    toggleDarkBtn.addEventListener('click', () => {
+    function recoverWithDownload() {
+      const content = localStorage.getItem(AUTO_SAVE_KEY);
+      if (content) {
+        // Download the recovered content
+        const blob = new Blob([content], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `recovered-notes-${new Date().toISOString().slice(0,10)}.txt`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Load into editor
+        editor.innerHTML = content;
+        recoveryModal.style.display = 'none';
+        isRecovered = true;
+        updateWordCount();
+      }
+    }
+
+    function recoverWithoutDownload() {
+      loadFromLocalStorage();
+      recoveryModal.style.display = 'none';
+      updateWordCount();
+    }
+
+    function toggleTheme() {
       document.body.classList.toggle('light-theme');
       if (document.body.classList.contains('light-theme')) {
         toggleDarkBtn.textContent = '🌒';
       } else {
         toggleDarkBtn.textContent = '🌓';
       }
-    });
-
-    // Initialize word count
-    updateWordCount();
+    }
   </script>
 </body>
 </html>
