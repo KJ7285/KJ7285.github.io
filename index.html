@@ -104,26 +104,36 @@
       filter: brightness(0) invert(1);
     }
 
-    #editor img, 
-    #editor video {
+    #editor img {
       max-width: 100%;
-      max-height: 300px;
+      max-height: 50vh;
+      display: block;
       border-radius: 8px;
-      margin: 10px 0;
+      margin: 10px auto;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
       cursor: pointer;
       transition: transform 0.2s;
     }
 
-    #editor img:hover, 
-    #editor video:hover {
+    #editor video {
+      max-width: 100%;
+      max-height: 50vh;
+      display: block;
+      border-radius: 8px;
+      margin: 10px auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      background-color: #000;
+    }
+
+    #editor img:hover {
       transform: scale(1.02);
     }
 
     .media-container {
       position: relative;
-      display: inline-block;
+      display: block;
       margin: 10px 0;
+      text-align: center;
     }
 
     .delete-media-btn {
@@ -205,6 +215,7 @@
       padding: 10px;
       border-bottom: 1px solid #444;
       cursor: pointer;
+      word-break: break-word;
     }
 
     .history-item:hover {
@@ -457,11 +468,6 @@
       
       updateWordCount();
       updateLastSavedTime();
-      
-      // Load any previously saved content
-      if (localStorage.getItem(AUTO_SAVE_KEY)) {
-        editor.innerHTML = localStorage.getItem(AUTO_SAVE_KEY);
-      }
     });
 
     // Event Listeners
@@ -517,10 +523,7 @@
     }
 
     function startAutoSave() {
-      // Clear any existing interval
       stopAutoSave();
-      
-      // Start new interval
       autoSaveInterval = setInterval(() => {
         if (autoSaveToggle.checked && editor.textContent.trim().length > 0) {
           saveToLocalStorage();
@@ -588,12 +591,23 @@
       let mediaElement;
       if (type.startsWith('image/')) {
         mediaElement = document.createElement('img');
+        // Force GIFs to animate by adding a cache-busting parameter
+        if (type === 'image/gif') {
+          src += (src.indexOf('?') === -1 ? '?' : '&') + 't=' + Date.now();
+        }
       } else if (type.startsWith('video/')) {
         mediaElement = document.createElement('video');
         mediaElement.controls = true;
+        mediaElement.autoplay = false;
       }
       
       mediaElement.src = src;
+      
+      // Handle large images by ensuring they're display:block and properly constrained
+      mediaElement.style.maxWidth = '100%';
+      mediaElement.style.maxHeight = '50vh';
+      mediaElement.style.display = 'block';
+      mediaElement.style.margin = '10px auto';
       
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-media-btn';
@@ -615,14 +629,6 @@
         range.deleteContents();
         range.insertNode(container);
         
-        // Add paragraph after media if needed
-        if (!range.startContainer.nextSibling || 
-            range.startContainer.nextSibling.nodeName !== 'P') {
-          const p = document.createElement('p');
-          p.innerHTML = '<br>';
-          container.after(p);
-        }
-        
         // Move cursor after the media
         const newRange = document.createRange();
         newRange.setStartAfter(container);
@@ -631,11 +637,8 @@
         selection.addRange(newRange);
       }
       
-      // Scroll to show the new media
-      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       updateWordCount();
       
-      // Auto-save if enabled
       if (autoSaveToggle.checked) {
         saveToLocalStorage();
       }
@@ -656,26 +659,7 @@
       });
       
       // Get the text content with preserved line breaks
-      let textContent = '';
-      const nodes = tempDiv.childNodes;
-      
-      for (let node of nodes) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          textContent += node.textContent;
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          // Preserve some basic formatting
-          if (node.nodeName === 'DIV') {
-            textContent += '\n' + node.textContent + '\n';
-          } else if (node.nodeName === 'BR' || node.nodeName === 'P') {
-            textContent += '\n';
-          } else {
-            textContent += node.textContent;
-          }
-        }
-      }
-      
-      // Clean up multiple consecutive newlines
-      textContent = textContent.replace(/\n{3,}/g, '\n\n').trim();
+      let textContent = tempDiv.innerText.replace(/\n{3,}/g, '\n\n').trim();
       
       // Create and download the file
       const blob = new Blob([textContent], { type: 'text/plain' });
@@ -696,13 +680,11 @@
     function addToHistory(content) {
       let history = JSON.parse(localStorage.getItem(HISTORY_KEY)) || [];
       
-      // Add new item to beginning of array
       history.unshift({
         content: content,
         timestamp: Date.now()
       });
       
-      // Limit history size
       if (history.length > MAX_HISTORY_ITEMS) {
         history = history.slice(0, MAX_HISTORY_ITEMS);
       }
@@ -746,15 +728,10 @@
       const blob = new Blob([item.content], { type: 'text/plain' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
-      
-      const date = new Date(item.timestamp);
-      const formattedDate = date.toISOString().slice(0,10);
-      
-      link.download = `notes-${formattedDate}.txt`;
+      link.download = `notes-${new Date(item.timestamp).toISOString().slice(0,10)}.txt`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
       historyModal.style.display = 'none';
     }
 
@@ -772,8 +749,12 @@
     function recoverWithDownload() {
       const content = localStorage.getItem(AUTO_SAVE_KEY);
       if (content) {
-        // Download the recovered content
-        const blob = new Blob([content], { type: 'text/plain' });
+        // Create text-only version for download
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = content;
+        const textContent = tempDiv.innerText;
+        
+        const blob = new Blob([textContent], { type: 'text/plain' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = `recovered-notes-${new Date().toISOString().slice(0,10)}.txt`;
